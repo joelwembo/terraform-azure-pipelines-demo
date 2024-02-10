@@ -41,7 +41,7 @@ steps:
 - script: terraform apply -auto-approve
   displayName: 'Terraform Apply'
   condition: succeeded()
-
+# remove resources
 # - script: terraform destroy -auto-approve
 #   displayName: 'Terraform Destroy Resources'
 
