@@ -14,20 +14,20 @@ resource "aws_cognito_resource_server" "resource_server" {
   }
 }
 
-resource "aws_acm_certificate" "cert" {
-  domain_name       = "prodxcloud.net"
-  validation_method = "DNS"
-  # zone_id             = "Z06625562WOVJG5T2CYVV"
+# resource "aws_acm_certificate" "cert" {
+#   domain_name       = "prodxcloud.net"
+#   validation_method = "DNS"
+#   # zone_id             = "Z06625562WOVJG5T2CYVV"
 
 
-  tags = {
-    Environment = "test"
-  }
+#   tags = {
+#     Environment = "test"
+#   }
 
-  lifecycle {
-    create_before_destroy = true
-  }
-}
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+# }
 
 resource "aws_cognito_user_pool_domain" "domain" {
   domain          = "api.prodxcloud.net"

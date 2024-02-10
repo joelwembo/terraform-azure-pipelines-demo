@@ -8,17 +8,17 @@ module "aws_acm_certificate" {
 }
 
 
-resource "aws_acm_certificate" "cert" {
-  domain_name       = "toplivecommerce.com"
-  validation_method = "DNS"
-  # zone_id             = "Z06625562WOVJG5T2CYVV"
+# resource "aws_acm_certificate" "cert" {
+#   domain_name       = "toplivecommerce.com"
+#   validation_method = "DNS"
+#   # zone_id             = "Z06625562WOVJG5T2CYVV"
 
 
-  tags = {
-    Environment = "test"
-  }
+#   tags = {
+#     Environment = "test"
+#   }
 
-  lifecycle {
-    create_before_destroy = true
-  }
-}
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+# }
