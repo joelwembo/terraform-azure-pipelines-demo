@@ -20,7 +20,7 @@ steps:
 - task: UsePythonVersion@0
   inputs:
     versionSpec: '3.x'
-    # addToPath: true
+    addToPath: true
     workingDirectory: '$(System.DefaultWorkingDirectory)/iac/terraform/terraform-s3'
 
 
@@ -31,6 +31,7 @@ steps:
       token = "$(token)"
     }
     EOF
+    cd ./iac/terraform/terraform-s3
     mv .terraformrc ~/.terraformrc
     export TF_CLI_CONFIG_FILE="~/.terraformrc"
     export TF_WORKSPACE=prodxcloud
