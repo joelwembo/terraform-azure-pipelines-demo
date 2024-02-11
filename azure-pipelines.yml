@@ -6,6 +6,12 @@ trigger:
       - master
       - feature/*
 
+  paths:
+    include:
+      - iac/terraform/terrraform-s3/*   
+    exclude:
+      - docs/*   
+
 pool:
   vmImage: 'ubuntu-latest'
 
@@ -13,12 +19,7 @@ steps:
 - task: UsePythonVersion@0
   inputs:
     versionSpec: '3.x'
-    addToPath: true
-
-- task: TerraformTaskV4@0
-  displayName: 'Install Terraform'
-  inputs:
-    terraformVersion: 'latest'    
+    addToPath: true  
 
 - script: |
     RC_FILE=".terraformrc"
@@ -36,7 +37,6 @@ steps:
 - script: |
     # terraform destroy -auto-approve -input=false  -lock=false
     terraform init -reconfigure
-    export TF_WORKSPACE=prodxcloud
     terraform validate
   displayName: 'Terraform Init and Validate'
 
