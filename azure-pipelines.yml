@@ -8,7 +8,7 @@ trigger:
 
   paths:
     include:
-      - iac/terraform/terrraform-s3/*   
+      - iac/terraform/*   
     exclude:
       - docs/*   
 
