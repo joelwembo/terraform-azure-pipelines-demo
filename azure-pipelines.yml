@@ -5,6 +5,7 @@ trigger:
       - main
       - master
       - feature/*
+      - releases/*
 
   paths:
     include:
@@ -19,7 +20,9 @@ steps:
 - task: UsePythonVersion@0
   inputs:
     versionSpec: '3.x'
-    addToPath: true  
+    # addToPath: true
+    workingDirectory: '$(System.DefaultWorkingDirectory)/iac/terraform/terraform-s3'
+
 
 - script: |
     RC_FILE=".terraformrc"
