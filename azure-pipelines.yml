@@ -1,10 +1,4 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-  # batch: false
   branches:
     include:
       - develop
@@ -13,158 +7,49 @@ trigger:
       - feature/*
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
-variables:
-- name: ProjectName
-  value: AWS-SAMPLE
-- name: Environment
-  ${{ if startsWith(variables['Build.SourceBranchName'], 'release')}}: 
-    value: prod
-  ${{ if eq(variables['Build.SourceBranchName'], 'master') }}: 
-    value: prod    
-  ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}: 
-    value: dev
-  ${{ if contains(variables['Build.SourceBranchName'], 'tag')}}: 
-    value: dev    
-- name : CostCenter
-  value: ABC000CBA
-- name: Region
-  value: EUC1
-- name: OpportunityImageName
-  value: opportunity
-- name: CustomerImageName
-  value: customer
-- name: ServiceImageName
-  value: service
-- name: AppSettingImageName
-  value: appsetting  
-- name: TF_OUTPUT_S3_BUCKETNAME
-  value: "Empty"
-- name: TF_OUTPUT_ALB_DNSNAME
-  value: "Empty"
-- name: TF_OUTPUT_COTGNITO_AUDIENCE
-  value: "Empty"
-- name: TF_OUTPUT_COTGNITO_POOLID
-  value: "Empty"
-- name: TF_OUTPUT_COTGNITOS_AUDIENCE
-  value: "Empty"
-- name: TF_OUTPUT_COTGNITOS_POOLID
-  value: "Empty"
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+    addToPath: true
 
-stages:
-  - stage: 
-    displayName: 'Test and Validation'
-    jobs:
-      - job: 
-        # condition: in(variables.Environment, 'dev', 'prod', 'acc')
-        continueOnError: false
-        steps:
+- task: TerraformTaskV4@0
+  displayName: 'Install Terraform'
+  inputs:
+    terraformVersion: 'latest'    
 
-          - task: Bash@3
-            displayName: 'Pipeline info'
-            inputs:
-              targetType: 'inline'
-              script: |
-                echo 'Environment:' ${{variables.environment}}
-                echo 'BuildId: ' $(Build.BuildId)
-                echo 'SourceBranchName:' $(Build.SourceBranchName)
-          - task: TerraformInstaller@0
-            displayName: 'Install TF'
-            continueOnError: false
-            inputs:
-              terraformVersion: '0.14.8'  
+- script: |
+    RC_FILE=".terraformrc"
+    cat > ${RC_FILE} << EOF
+    credentials "app.terraform.io" {
+      token = "$(token)"
+    }
+    EOF
+    mv .terraformrc ~/.terraformrc
+    export TF_CLI_CONFIG_FILE="~/.terraformrc"
+    export TF_WORKSPACE=prodxcloud
+  name: terraform_cloud_credentials
+  displayName: 'Terraform Cloud Credentials'
 
-#----------------- S3 Static website validation
-          - task: TerraformTaskV1@0
-            displayName: 'Init TF to validate S3'
-            inputs:
-              provider: 'aws'
-              command: 'init'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/s3'
-              backendServiceAWS: 'aws-sample-connection'
-              backendAWSBucketName: 'terraform-aws-sample-${{variables.Environment}}-euc1'
-              backendAWSKey: 's3/terraform.tfstate'      
+- script: |
+    # terraform destroy -auto-approve -input=false  -lock=false
+    terraform init -reconfigure
+    export TF_WORKSPACE=prodxcloud
+    terraform validate
+  displayName: 'Terraform Init and Validate'
 
-          - task: TerraformTaskV1@0
-            displayName: 'Validate S3'
-            inputs:
-              provider: 'aws'
-              command: 'validate'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/s3'
-              commandOptions: '-var "region=${{variables.Region}}" -var "costcenter=${{variables.CostCenter}}" -var "projectname=${{variables.ProjectName}}" -var "environment=${{variables.environment}}" -var "imagenames=${{variables.OpportunityImageName}},${{variables.CustomerImageName}},${{variables.ServiceImageName}},${{variables.AppSettingImageName}}" -var "tag=$(Build.BuildId)"'
+- script: terraform fmt
+  displayName: 'Terraform Format'
 
+- script: terraform fmt
+  displayName: 'Terraform Plan'
 
-#----------------- Cognito validation
-          - task: TerraformTaskV1@0
-            displayName: 'Init TF to validate Cognito'
-            inputs:
-              provider: 'aws'
-              command: 'init'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/cognito'
-              backendServiceAWS: 'aws-sample-connection'
-              backendAWSBucketName: 'terraform-aws-sample-${{variables.Environment}}-euc1'
-              backendAWSKey: "cognito/terraform.tfstate"
+- script: terraform apply -auto-approve
+  displayName: 'Terraform Apply'
+  condition: succeeded()
+# remove resources
+# - script: terraform destroy -auto-approve
+#   displayName: 'Terraform Destroy Resources'
 
-          - task: TerraformTaskV1@0
-            displayName: 'Validate Cognito'
-            inputs:
-              provider: 'aws'
-              command: 'validate'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/cognito'
-              commandOptions: '-var "region=${{variables.Region}}" -var "costcenter=${{variables.CostCenter}}" -var "projectname=${{variables.ProjectName}}" -var "environment=${{variables.environment}}" -var "imagenames=${{variables.OpportunityImageName}},${{variables.CustomerImageName}},${{variables.ServiceImageName}},${{variables.AppSettingImageName}}" -var "tag=$(Build.BuildId)"'
-
-#-----------------------------------------------------------------------------------------------------------------------------------
-  - stage: 
-    displayName: 'CI/CD'
-    condition: and(succeeded(), in(variables.Environment, 'dev', 'prod', 'acc'))
-    jobs:
-      - job: 
-        continueOnError: false
-        steps:
-
-          - task: TerraformInstaller@0
-            displayName: 'Install TF'
-            continueOnError: false
-            inputs:
-              terraformVersion: '0.14.8'
-
-#----------------- S3 Static website
-          - task: TerraformTaskV1@0
-            displayName: 'Init TF to deploy S3'
-            inputs:
-              provider: 'aws'
-              command: 'init'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/s3'
-              backendServiceAWS: 'aws-sample-connection'
-              backendAWSBucketName: 'terraform-aws-sample-${{variables.Environment}}-euc1'
-              backendAWSKey: 's3/terraform.tfstate'      
-
-          - task: TerraformTaskV1@0
-            displayName: 'Deploy S3'
-            inputs:
-              provider: 'aws'
-              command: 'apply'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/s3'
-              commandOptions: '-var "region=${{variables.Region}}" -var "costcenter=${{variables.CostCenter}}" -var "projectname=${{variables.ProjectName}}" -var "environment=${{variables.environment}}" -var "imagenames=${{variables.OpportunityImageName}},${{variables.CustomerImageName}},${{variables.ServiceImageName}},${{variables.AppSettingImageName}}" -var "tag=$(Build.BuildId)"'
-              environmentServiceNameAWS: 'aws-sample-connection' 
-
-#----------------- Cognito
-          - task: TerraformTaskV1@0
-            displayName: 'Init TF to deploy Cognito'
-            inputs:
-              provider: 'aws'
-              command: 'init'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/cognito'
-              backendServiceAWS: 'aws-sample-connection'
-              backendAWSBucketName: 'terraform-aws-sample-${{variables.Environment}}-euc1'
-              backendAWSKey: "cognito/terraform.tfstate"
-                           
-          - task: TerraformTaskV1@0
-            displayName: 'Deploy Cognito'
-            inputs:
-              provider: 'aws'
-              command: 'apply'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/cognito'
-              commandOptions: '-var "region=${{variables.Region}}" -var "costcenter=${{variables.CostCenter}}" -var "projectname=${{variables.ProjectName}}" -var "environment=${{variables.environment}}" -var "imagenames=${{variables.OpportunityImageName}},${{variables.CustomerImageName}},${{variables.ServiceImageName}},${{variables.AppSettingImageName}}" -var "tag=$(Build.BuildId)"'
-              environmentServiceNameAWS: 'aws-sample-connection'                   
