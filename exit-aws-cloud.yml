@@ -1,16 +1,5 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-  # batch: false
-  branches:
-    include:
-      - develop
-      - main
-      - master
-      - feature/*
+  - none
 
 pool:
   vmImage: ubuntu-latest
@@ -39,18 +28,7 @@ variables:
   value: service
 - name: AppSettingImageName
   value: appsetting  
-- name: TF_OUTPUT_S3_BUCKETNAME
-  value: "Empty"
-- name: TF_OUTPUT_ALB_DNSNAME
-  value: "Empty"
-- name: TF_OUTPUT_COTGNITO_AUDIENCE
-  value: "Empty"
-- name: TF_OUTPUT_COTGNITO_POOLID
-  value: "Empty"
-- name: TF_OUTPUT_COTGNITOS_AUDIENCE
-  value: "Empty"
-- name: TF_OUTPUT_COTGNITOS_POOLID
-  value: "Empty"
+
 
 stages:
   - stage: 
@@ -116,7 +94,7 @@ stages:
 
 #-----------------------------------------------------------------------------------------------------------------------------------
   - stage: 
-    displayName: 'CI/CD'
+    displayName: 'Destroy'
     condition: and(succeeded(), in(variables.Environment, 'dev', 'prod', 'acc'))
     jobs:
       - job: 
@@ -131,7 +109,7 @@ stages:
 
 #----------------- S3 Static website
           - task: TerraformTaskV1@0
-            displayName: 'Init TF to deploy S3'
+            displayName: 'Init TF to destroy S3'
             inputs:
               provider: 'aws'
               command: 'init'
@@ -141,17 +119,17 @@ stages:
               backendAWSKey: 's3/terraform.tfstate'      
 
           - task: TerraformTaskV1@0
-            displayName: 'Deploy S3'
+            displayName: 'destroy S3'
             inputs:
               provider: 'aws'
-              command: 'apply'
+              command: 'destroy'
               workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/s3'
               commandOptions: '-var "region=${{variables.Region}}" -var "costcenter=${{variables.CostCenter}}" -var "projectname=${{variables.ProjectName}}" -var "environment=${{variables.environment}}" -var "imagenames=${{variables.OpportunityImageName}},${{variables.CustomerImageName}},${{variables.ServiceImageName}},${{variables.AppSettingImageName}}" -var "tag=$(Build.BuildId)"'
               environmentServiceNameAWS: 'aws-sample-connection' 
 
 #----------------- Cognito
           - task: TerraformTaskV1@0
-            displayName: 'Init TF to deploy Cognito'
+            displayName: 'Init TF to destroy Cognito'
             inputs:
               provider: 'aws'
               command: 'init'
@@ -161,10 +139,10 @@ stages:
               backendAWSKey: "cognito/terraform.tfstate"
                            
           - task: TerraformTaskV1@0
-            displayName: 'Deploy Cognito'
+            displayName: 'destroy Cognito'
             inputs:
               provider: 'aws'
-              command: 'apply'
+              command: 'destroy'
               workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/cognito'
               commandOptions: '-var "region=${{variables.Region}}" -var "costcenter=${{variables.CostCenter}}" -var "projectname=${{variables.ProjectName}}" -var "environment=${{variables.environment}}" -var "imagenames=${{variables.OpportunityImageName}},${{variables.CustomerImageName}},${{variables.ServiceImageName}},${{variables.AppSettingImageName}}" -var "tag=$(Build.BuildId)"'
               environmentServiceNameAWS: 'aws-sample-connection'                   
